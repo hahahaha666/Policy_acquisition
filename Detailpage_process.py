@@ -96,7 +96,7 @@ def DPP_contentr_e(logger,**kwargs):
                     else:
                         title = "".join(html_x.xpath(title_details))
                 except Exception as err:
-                    print(err)
+                    logger.error("网址 {} 详情标题获取错误 {}".format(url,err))
                 item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': replace_html(content), 'fj_info': fj_all,
                         'title': title}
             else:
