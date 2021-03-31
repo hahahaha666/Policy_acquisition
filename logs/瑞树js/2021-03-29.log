@@ -1,0 +1,4 @@
+2021-03-29 20:11:30 | ERROR    | log.py:utils.log:error:57 - shiwuy 
+2021-03-29 20:12:18 | ERROR    | log.py:utils.log:error:57 - 处理食物unsupported operand type(s) for /: 'NoneType' and 'int' 
+2021-03-29 20:33:45 | INFO     | log.py:utils.log:info:47 - FSSBBIl1UgzbN7N80S=wB2fBGqW8Qkh21nIP1T.jrNVWMrrH0u1gZZfZ5Ix981cUI7siaXpM57qBS.q7FR1
+2021-03-29 20:34:50 | INFO     | log.py:utils.log:info:47 - name 'a' is not defined
