@@ -474,10 +474,11 @@ class PARSE_DETAIL(object):
 
     def PARSE_FILE(self,html, url, host_name, c_time, title, accessory_xpath,accessory_re, accessory_judge):
         """
-
+        附件处理函数
         """
         md, fj_one, fj_all = self.GET_accessory(html, url, host_name, 1, "www.baidu.com", c_time, title, accessory_xpath,accessory_re, accessory_judge)
         return  md, fj_one, fj_all
+
     def DPP_contentr_e(self):
         """
         详情页是正则采集
@@ -497,6 +498,14 @@ class PARSE_DETAIL(object):
             c_time = self.pub_time
         pat = '{}([\w\W]*?){}'.format(self.content_tag, self.content_tag_end)
         content = self.prse_src("".join(re.compile(pat).findall(self.html)), self.url)
+        if int(self.title_type) == 1:
+            try:
+                if "^" in self.title_details:
+                    title = "".join(re.compile(self.title_details.replace("^", '')).findall(self.html))
+                else:
+                    title = "".join(html_x.xpath(self.title_details))
+            except Exception as err:
+                self.logger.error("网址 {} 详情标题获取错误 {}".format(self.url, err))
         if len(content)>1:
             content = self.prse_text(content, self.url)
             if self.judge_model == "test":
