@@ -522,6 +522,7 @@ def GET_accessory(html, url, host_name, l_type, host, c_time, title, accessory_x
     except:
         p = ""
         return None, None, p
+
 def Power_accessory(url, html, title, host_name, l_type, host, c_time):
     all_fj = []
     all_md = []
@@ -649,7 +650,7 @@ def Parse_accessory(a_response, a_html, url, title, host_name, l_type, host, c_t
         if not name_cn or len(name_cn) < 1:
             name_cn = "附件{}".format(index)
         fj_url = urljoin(url, i.strip())
-        g = get_type(fj_url)
+        g = get_type(fj_url) ####网络请求获取状态
         suffix = get_suffix(str(g))
         if suffix:
             name_cn = name_cn.replace(".", '') + "." + str(suffix)
@@ -669,15 +670,6 @@ def Parse_accessory(a_response, a_html, url, title, host_name, l_type, host, c_t
             pass
     return all_fj, all_md, fj_all
 
-
-def replace_html(html):
-    try:
-        soup = BeautifulSoup(html, 'html.parser')
-        html = soup.prettify()
-    except:
-        pass
-    title = html.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", '&').replace("&nbsp;", '').replace("&nbsp", '').replace("nbsp", '').replace("display:none", '')
-    return title
 
 
 def fj_get_one(name_cn, suffix, fj_url, md, host_name, l_type, host, c_time):
@@ -727,3 +719,14 @@ def get_type(url):
         except:
             num += 1
     return None
+
+
+def replace_html(html):
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        html = soup.prettify()
+    except:
+        pass
+    title = html.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", '&').replace("&nbsp;", '').replace("&nbsp", '').replace("nbsp", '').replace("display:none", '')
+    return title
+
