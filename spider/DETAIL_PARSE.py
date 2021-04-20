@@ -478,6 +478,16 @@ class PARSE_DETAIL(object):
         """
         md, fj_one, fj_all = self.GET_accessory(html, url, host_name, 1, "www.baidu.com", c_time, title, accessory_xpath,accessory_re, accessory_judge)
         return  md, fj_one, fj_all
+    def get_title(self,title_details,html_x,url,html):
+        try:
+            if "^" in title_details:
+                title = "".join(re.compile(title_details.replace("^", '')).findall(html))
+            else:
+                title = "".join(html_x.xpath(title_details))
+        except Exception as err:
+            self.logger.error("栏目id {}网址 {} 详情标题获取错误 {}".format(self.,url, err))
+            return  "标题获取失败"
+        return title
 
     def DPP_contentr_e(self):
         """
@@ -510,3 +520,5 @@ class PARSE_DETAIL(object):
             content = self.prse_text(content, self.url)
             if self.judge_model == "test":
                 md, fj_one, fj_all=self.PARSE_FILE(self.html, self.url, self.host_name, c_time, self.title,self.accessory_xpath,self.accessory_re, self.accessory_judge)
+                if int(self.title_type) == 1:
+                    title=self.get_title(self.title_details,html_x,self.url,self.html)
