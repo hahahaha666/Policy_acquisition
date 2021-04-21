@@ -24,10 +24,10 @@ class work():
             html = await  Ray_html(url, argument['res_headers'],logger)
         else:
             if int(argument['detail_type']) == 0: ##详情页是get：
-                html=ZC_getcolumn().AIO_GET(argument,url,logger)
+                html=await  ZC_getcolumn().AIO_GET(argument,url,logger)
             else:
                 ###详情页是post
-                html=ZC_getcolumn().AIO_POST(argument,post_data,url,logger)
+                html=await  ZC_getcolumn().AIO_POST(argument,post_data,url,logger)
         ###网页源码是否需要转吗
         if int(argument['detail_tran']) == 1:
             html=html.encode('utf-8').decode('unicode_escape', 'ignore')

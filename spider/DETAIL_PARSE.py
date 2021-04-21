@@ -25,12 +25,20 @@ class PARSE_DETAIL(object):
         self.judge_model = kwargs['judge_model']
         self.pub_time = kwargs['pub_time']
         self.json_xq = kwargs['json_xq']
+        self.xpath_xq = kwargs['xpath_xq']
+
         self.accessory_xpath = kwargs['accessory_xpath']
         self.accessory_re = kwargs['accessory_re']
         self.accessory_judge = kwargs['accessory_judge']
         self.title_details = kwargs['title_details']
         self.re_time = kwargs['re_time']
         self.xpath_time = kwargs['xpath_time']
+        self.cid = kwargs['cid']
+        if self.judge_model=="formal":
+            self.l_type = kwargs['l_type']
+            self.host = kwargs['host']
+            self.cid = kwargs["cid"]
+            self.title = kwargs['title']
         try:
             self.title = kwargs['title']
         except:
@@ -392,7 +400,7 @@ class PARSE_DETAIL(object):
                 name_cn = "附件{}".format(index)
             fj_url = urljoin(url, i.strip())
             g = self.get_type(fj_url)  ####网络请求获取状态
-            suffix = self.get_suffix(str(g))
+            suffix = self.get_suffix(str(g))  ####存进redis   然后统一取出来返回状态
             if suffix:
                 name_cn = name_cn.replace(".", '') + "." + str(suffix)
                 m = hashlib.md5()
@@ -485,11 +493,24 @@ class PARSE_DETAIL(object):
             else:
                 title = "".join(html_x.xpath(title_details))
         except Exception as err:
-            self.logger.error("栏目id {}网址 {} 详情标题获取错误 {}".format(self.,url, err))
+            self.logger.error("栏目id {}网址 {} 详情标题获取错误 {}".format(self.cid,url, err))
             return  "标题获取失败"
         return title
 
-    def DPP_contentr_e(self):
+    def  get_item(self,title,c_time,source,text,content):
+        if self.judge_model == "test":
+            md, fj_one, fj_all = self.PARSE_FILE(self.html, self.url, self.host_name, c_time, self.title, self.accessory_xpath, self.accessory_re, self.accessory_judge)
+            if int(self.title_type) == 1:
+                item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': self.replace_html(content), 'fj_info': fj_all,
+                        'title': title}
+            else:
+                item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': self.replace_html(content), 'fj_info': fj_all}
+        else:
+            md, fj_one, fj_all = self.GET_accessory(self.html, self.url, self.host_name, self.l_type, self.host, c_time, title, self.accessory_xpath, self.accessory_re, self.accessory_judge)
+            item = (source, c_time, self.replace_html(content), md, title, self.url, self.cid)
+        return item
+
+    def DPP_content_re(self):
         """
         详情页是正则采集
         """
@@ -509,16 +530,140 @@ class PARSE_DETAIL(object):
         pat = '{}([\w\W]*?){}'.format(self.content_tag, self.content_tag_end)
         content = self.prse_src("".join(re.compile(pat).findall(self.html)), self.url)
         if int(self.title_type) == 1:
-            try:
-                if "^" in self.title_details:
-                    title = "".join(re.compile(self.title_details.replace("^", '')).findall(self.html))
-                else:
-                    title = "".join(html_x.xpath(self.title_details))
-            except Exception as err:
-                self.logger.error("网址 {} 详情标题获取错误 {}".format(self.url, err))
+            title = self.get_title(self.title_details, html_x, self.url, self.html)
+        else:
+            title=self.title
         if len(content)>1:
             content = self.prse_text(content, self.url)
+            item=self.get_item(title,c_time,source,text,content)
+            return  item
+        else:
+            self.logger.error("栏目id {}网址 {} 详情页正则采集报错 ".format(self.cid,self.url))
             if self.judge_model == "test":
-                md, fj_one, fj_all=self.PARSE_FILE(self.html, self.url, self.host_name, c_time, self.title,self.accessory_xpath,self.accessory_re, self.accessory_judge)
-                if int(self.title_type) == 1:
-                    title=self.get_title(self.title_details,html_x,self.url,self.html)
+                return ""
+            return None, None
+
+    def DPP_content_xpath(self):
+        """
+        详情页是xpath采集
+        """
+        html_x = etree.HTML(self.html)
+        source = self.source_pd(html_x)  #####获取来源
+        if not source or len(source) >= 10:
+            source = self.host_name
+        text = ''
+        if int(self.judge_time) > 3:
+            c_time = self.xq_public_time(self.html, self.judge_time, self.re_time, self.xpath_time)
+        else:
+            c_time = self.pub_time
+        xpath_list = self.xpath_xq.split("^")
+        data_xpath_new = None
+        for i in xpath_list:
+            data_xpath = html_x.xpath(i)
+            if data_xpath:
+                data_xpath_new = data_xpath
+                break
+            else:
+                pass
+        if data_xpath_new is not None:
+            code = "utf-8"
+            content = ""
+            for i in data_xpath_new:
+                ror = tostring(i, encoding=code).decode(code)
+                ror = self.prse_src(ror, self.url)
+                content += ror
+            content = self.prse_text(content, self.url)
+            if int(self.title_type) == 1:
+                title = self.get_title(self.title_details, html_x, self.url, self.html)
+            else:
+                title = self.title
+            if len(content) > 1:
+                content = self.prse_text(content, self.url)
+                item = self.get_item(title, c_time, source, text, content)
+                return item
+            else:
+                self.logger.error("栏目id {}网址 {} 详情页xpath采集报错 ".format(self.cid, self.url))
+                if self.judge_model == "test":
+                    return ""
+                return None, None
+        else:
+            self.logger.error("栏目id {}网址 {} 详情页xpath采集报错 ".format(self.cid, self.url))
+
+    def DPP_content_json(self):
+        if "http://www.shptdj.cn/website/Ajax/content_0.ashx" in self.url or "http://gkml.dbw.cn/gkml/web/data/detail.ashx?" in self.url:
+            url_org = parse.unquote(self.html)
+            html = url_org.replace("%u", '\\u').encode('utf-8').decode('unicode_escape')
+        content = jsonpath.jsonpath(json.loads(html), json_xq)[0]
+        html = content
+        html_x = etree.HTML(html)
+        source = source_pd(html_x)  #####获取来源
+        if not source or len(source) >= 10:
+            source = host_name
+        text = ''
+        if int(judge_time) > 3:
+            c_time = xq_public_time(html, judge_time, re_time, xpath_time)
+            # c_time = time_pd(html)####获取发布日期
+        else:
+            c_time = pub_time
+        content = prse_src(content, url)
+        if len(content) > 0:
+            imgs = re.compile("<img.*?(?:>|\/>)", re.IGNORECASE).findall(content)
+            for i in imgs:
+                try:
+                    src = re.compile(" src=[\'\"]?([^\'\"]*)[\'\"]?", re.IGNORECASE).findall(i.replace("\\", ''))[0]
+                except:
+                    src = ""
+                if src:
+                    if 'http' in src or 'data:image' in src:
+                        pass
+                    else:
+                        src_i_i = urljoin(url, src)
+                        content = content.replace(src, src_i_i)
+                else:
+                    pass
+            videos = re.compile("<video.*?(?:>|\/>)", re.IGNORECASE).findall(content)
+            for j in videos:
+                try:
+                    src = "".join(re.compile(" src=[\'\"]?([^\'\"]*)[\'\"]?", re.IGNORECASE).findall(j))
+                except:
+                    src = ""
+                if src:
+                    if 'http' in src:
+                        pass
+                    else:
+                        video_src = urljoin(url, src)
+                        content = content.replace(src, video_src)
+                else:
+                    pass
+            if judge_model == "test":
+                md, fj_one, fj_all = GET_accessory(html, url, host_name, 1, "www.baidu.com", c_time, title, accessory_xpath, accessory_re, accessory_judge)
+                if int(title_type) == 1:
+                    try:
+                        if "^" in title_details:
+                            title = "".join(re.compile(title_details.replace("^", '')).findall(html))
+                        else:
+                            title = "".join(html_x.xpath(title_details))
+                    except Exception as err:
+                        print(err)
+                    item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': replace_html(content), 'fj_info': fj_all,
+                            'title': title}
+                else:
+                    item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': replace_html(content), 'fj_info': fj_all}
+                return item
+            elif judge_model == "formal":
+                l_type = kwargs['l_type']
+                host = kwargs['host']
+                cid = kwargs["cid"]
+                title = kwargs['title']
+                if int(title_type) == 1:
+                    try:
+                        title = "".join(html_x.xpath(title_details))
+                    except:
+                        title = kwargs['title']
+                md, fj_one, fj_all = GET_accessory(html, url, host_name, l_type, host, c_time, title, accessory_xpath, accessory_re, accessory_judge)
+                item = (source, c_time, replace_html(content), md, title, url, cid)
+                return item, fj_one
+        else:
+            if judge_model == "test":
+                return ""
+            return None, None
