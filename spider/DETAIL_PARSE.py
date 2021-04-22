@@ -508,7 +508,7 @@ class PARSE_DETAIL(object):
         else:
             md, fj_one, fj_all = self.GET_accessory(self.html, self.url, self.host_name, self.l_type, self.host, c_time, title, self.accessory_xpath, self.accessory_re, self.accessory_judge)
             item = (source, c_time, self.replace_html(content), md, title, self.url, self.cid)
-        return item
+        return item,fj_one
 
     def DPP_content_re(self):
         """
@@ -535,8 +535,8 @@ class PARSE_DETAIL(object):
             title=self.title
         if len(content)>1:
             content = self.prse_text(content, self.url)
-            item=self.get_item(title,c_time,source,text,content)
-            return  item
+            item,fj_one=self.get_item(title,c_time,source,text,content)
+            return  item,fj_one
         else:
             self.logger.error("栏目id {}网址 {} 详情页正则采集报错 ".format(self.cid,self.url))
             if self.judge_model == "test":
@@ -578,9 +578,8 @@ class PARSE_DETAIL(object):
             else:
                 title = self.title
             if len(content) > 1:
-                content = self.prse_text(content, self.url)
-                item = self.get_item(title, c_time, source, text, content)
-                return item
+                item,fj_one = self.get_item(title, c_time, source, text, content)
+                return item,fj_one
             else:
                 self.logger.error("栏目id {}网址 {} 详情页xpath采集报错 ".format(self.cid, self.url))
                 if self.judge_model == "test":
@@ -592,78 +591,29 @@ class PARSE_DETAIL(object):
     def DPP_content_json(self):
         if "http://www.shptdj.cn/website/Ajax/content_0.ashx" in self.url or "http://gkml.dbw.cn/gkml/web/data/detail.ashx?" in self.url:
             url_org = parse.unquote(self.html)
-            html = url_org.replace("%u", '\\u').encode('utf-8').decode('unicode_escape')
-        content = jsonpath.jsonpath(json.loads(html), json_xq)[0]
-        html = content
-        html_x = etree.HTML(html)
-        source = source_pd(html_x)  #####获取来源
+            self.html = url_org.replace("%u", '\\u').encode('utf-8').decode('unicode_escape')
+        json_html = jsonpath.jsonpath(json.loads(self.html), self.json_xq)[0]
+        html_x = etree.HTML(json_html)
+        source = self.source_pd(html_x)  #####获取来源
         if not source or len(source) >= 10:
-            source = host_name
+            source = self.host_name
         text = ''
-        if int(judge_time) > 3:
-            c_time = xq_public_time(html, judge_time, re_time, xpath_time)
+        if int(self.judge_time) > 3:
+            c_time = self.xq_public_time(json_html, self.judge_time, self.re_time, self.xpath_time)
             # c_time = time_pd(html)####获取发布日期
         else:
-            c_time = pub_time
-        content = prse_src(content, url)
-        if len(content) > 0:
-            imgs = re.compile("<img.*?(?:>|\/>)", re.IGNORECASE).findall(content)
-            for i in imgs:
-                try:
-                    src = re.compile(" src=[\'\"]?([^\'\"]*)[\'\"]?", re.IGNORECASE).findall(i.replace("\\", ''))[0]
-                except:
-                    src = ""
-                if src:
-                    if 'http' in src or 'data:image' in src:
-                        pass
-                    else:
-                        src_i_i = urljoin(url, src)
-                        content = content.replace(src, src_i_i)
-                else:
-                    pass
-            videos = re.compile("<video.*?(?:>|\/>)", re.IGNORECASE).findall(content)
-            for j in videos:
-                try:
-                    src = "".join(re.compile(" src=[\'\"]?([^\'\"]*)[\'\"]?", re.IGNORECASE).findall(j))
-                except:
-                    src = ""
-                if src:
-                    if 'http' in src:
-                        pass
-                    else:
-                        video_src = urljoin(url, src)
-                        content = content.replace(src, video_src)
-                else:
-                    pass
-            if judge_model == "test":
-                md, fj_one, fj_all = GET_accessory(html, url, host_name, 1, "www.baidu.com", c_time, title, accessory_xpath, accessory_re, accessory_judge)
-                if int(title_type) == 1:
-                    try:
-                        if "^" in title_details:
-                            title = "".join(re.compile(title_details.replace("^", '')).findall(html))
-                        else:
-                            title = "".join(html_x.xpath(title_details))
-                    except Exception as err:
-                        print(err)
-                    item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': replace_html(content), 'fj_info': fj_all,
-                            'title': title}
-                else:
-                    item = {"source": source, 'time': c_time, 'content': text, 'bq_conten': replace_html(content), 'fj_info': fj_all}
-                return item
-            elif judge_model == "formal":
-                l_type = kwargs['l_type']
-                host = kwargs['host']
-                cid = kwargs["cid"]
-                title = kwargs['title']
-                if int(title_type) == 1:
-                    try:
-                        title = "".join(html_x.xpath(title_details))
-                    except:
-                        title = kwargs['title']
-                md, fj_one, fj_all = GET_accessory(html, url, host_name, l_type, host, c_time, title, accessory_xpath, accessory_re, accessory_judge)
-                item = (source, c_time, replace_html(content), md, title, url, cid)
-                return item, fj_one
+            c_time = self.pub_time
+        content = self.prse_src(json_html, self.url)
+        if len(content)>0:
+            content = self.prse_text(content, self.url)
+            if int(self.title_type) == 1:
+                title = self.get_title(self.title_details, html_x, self.url, self.html)
+            else:
+                title = self.title
+            item,fj_one = self.get_item(title, c_time, source, text, content)
+            return  item,fj_one
         else:
-            if judge_model == "test":
+            self.logger.error("栏目id {}网址 {} 详情页xpath采集报错 ".format(self.cid, self.url))
+            if self.judge_model == "test":
                 return ""
             return None, None

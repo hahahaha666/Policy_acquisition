@@ -52,11 +52,11 @@ class work():
         argument['content_tag'] = content_tag_start
         argument['content_tag_end'] = content_tag_end
         if content_tag:
-            item=DPP_contentr_e(logger,**argument)
+            item,wy=DPP_contentr_e(logger,**argument)
         elif xpath_xq:
-            item=DPP_content_xpath(logger,**argument)
+            item,wy=DPP_content_xpath(logger,**argument)
         elif json_xq:
-            item = DPP_content_json(logger,**argument)
+            item,wy = DPP_content_json(logger,**argument)
         #####测试不加入自动获取文本 以防不打标签
         if item!=None:
             all = []

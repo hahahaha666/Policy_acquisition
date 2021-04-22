@@ -97,7 +97,7 @@ class ZC_getcolumn():
                 html = remove_comments(html)
             kwargs['html'] = html
             if title_tag:
-                json_list = Handle_tttt(**kwargs)
+                json_list = Handle_tttt(logger,**kwargs)
             elif title_re:
                 json_list = Handle_title_re(**kwargs)
             elif xpath_list:
