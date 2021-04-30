@@ -465,7 +465,7 @@ class COLUNm(object):
         if self.xq_url_light:
             href_b = self.parse_joint(self.xq_url_light, self.html, self.xq_url_right)
         else:
-            href_a = re.compile(xq_url_right).findall(html)
+            href_a = re.compile(self.xq_url_right).findall(self.html)
             href_b = href_a
         if int(judge_time) != 0 and int(judge_time) < 4:
             all_time = public_time(html, judge_time, re_time, xpath_time)
