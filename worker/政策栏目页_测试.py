@@ -8,7 +8,8 @@ from  Columnpage_process import  *
 from utils.async_proxy_util import *
 import nest_asyncio
 from utils.PoolDB import POOL_DB
-
+from aiohttp import ClientConnectorError, ClientOSError, ClientHttpProxyError
+from concurrent.futures import TimeoutError
 from utils import log
 
 logger = log.write_log(work_name='政策栏目页测试')
@@ -36,6 +37,8 @@ class ZC_getcolumn():
                     num += 1
                 elif int(pd) == 3:
                     return "附件"
+            except (ClientHttpProxyError, ClientOSError, ClientConnectorError, TimeoutError) as e:
+                logger.error(f"政策 {url} get  代理出错 {num}次")
             except Exception as err:
                 logger.error("政策{} post 循环 {}次 {}".format(url ,str(num),err))
                 num += 1
@@ -58,6 +61,8 @@ class ZC_getcolumn():
                     num += 1
                 elif int(pd) == 3:
                     return "附件"
+            except (ClientHttpProxyError, ClientOSError, ClientConnectorError, TimeoutError) as e:
+                logger.error(f"政策 {url} get  代理出错{num}次")
             except Exception as err:
                 logger.error("政策  {} get 循环 {}  {}".format(url,str(num),err))
                 num += 1

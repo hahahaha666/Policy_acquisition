@@ -40,6 +40,11 @@ class COLUNm(object):
         self.re_time = kwargs['re_time']
         self.detail_type = kwargs['detail_type']
         self.detail_data = kwargs['detail_data']
+        self.xpath_list = kwargs['xpath_list']
+        self.title_re = kwargs['title_re']
+        self.xq_url_right = kwargs['xq_url_right']
+        self.xq_url_light = kwargs['xq_url_light']
+        html = kwargs['html']
         self.logger=log
 
     def public_time(self,html, judge_time, re_time, xpath_time):
@@ -260,6 +265,8 @@ class COLUNm(object):
                 p = re.compile(pat).findall(html)[num]
                 data[key] = p
         return data
+
+
     def Handle_tttt(self):
         """
         正则解析模式
@@ -308,14 +315,15 @@ class COLUNm(object):
                         m = hashlib.md5()
                         m.update(str(post_data_str).encode('utf-8'))
                         right = m.hexdigest()  ####拿到url 哈希值
-                        href = href + "*^*" + right
+                        href = href + "*^*" + right  ###拼接网址
                     else:
                         post_data_str = ""
-                    item = {'title': self.replace_biaoti(title),
-                            'xq_url': href,
-                            'pageurl': self.pageurl,
-                            'public_time': pub_time,
-                            'post_data': post_data_str
+                    item = {
+                        'title': self.replace_biaoti(title),
+                        'xq_url': href,
+                        'pageurl': self.pageurl,
+                        'public_time': pub_time,
+                        'post_data': post_data_str
                             }
 
                     if self.judge_model == "formal":
@@ -333,7 +341,213 @@ class COLUNm(object):
             self.logger.error("栏目id:{} 正则解析模式出错 msg={}".format(self.cid,err))
             return P
 
+    def Handle_xpath(self):
+        """
+        xpath1处理栏目页
+        """
+        json_list = []
+        xpath_html = etree.HTML(self.html)
+        try:
+            if int(self.judge_time) != 0 and int(self.judge_time) < 4:
+                content = tostring(xpath_html, encoding="utf-8").decode("utf-8")
+                all_time = self.public_time(content, self.judge_time, self.re_time, self.xpath_time)
+            else:
+                all_time = None
+            if all_time != None:
+                pd_i = 0
+            if "^" in self.xpath_list:###代表这个xpath是直接区分url和title的
+                self.xpath_title=self.xpath_list.split("^")[0]
+                self.xpath_url = self.xpath_list.split("^")[1]
+                title_list=xpath_html.xpath(self.xpath_title)
+                url_list = xpath_html.xpath(self.xpath_url)
+                index = 0
+                if len(title_list) == len(url_list) == len(all_time):
+                    new_list=list(zip(title_list, url_list))
+                    for  i in new_list:
+                        title=i[0]
+                        href=i[1]
+                        if all_time != None:
+                            date = all_time[pd_i]
+                            pub_time = self.handle_pubdate(date)
+                            pd_i+=1
+                        else:
+                            pub_time = ''
+                        if int(self.detail_type) == 1:
+                            post_data_str =self.POST_data(self.detail_data, self.html, index)  ####拿到post所需data数据
+                            index += 1
+                            m = hashlib.md5()
+                            m.update(str(post_data_str).encode('utf-8'))
+                            right = m.hexdigest()  ####拿到url 哈希值
+                            href = href + "*^*" + right
+                        else:
+                            post_data_str = ""
+                        item = {
+                            'title': self.replace_biaoti(title),
+                            'xq_url': href,
+                            'pageurl': self.pageurl,
+                            'public_time': pub_time,
+                            'post_data': post_data_str
+                        }
+                        if self.judge_model == "formal":
+                            info = (json.dumps(post_data_str), self.replace_biaoti(title), self.cid, 0, 0, pub_time, href)
+                            json_list.append(info)
+                        elif self.judge_model == "test":
+                            json_list.append(item)
+                        return  json_list
+                else:
+                    self.logger.error(f"栏目页 {self.pageurl} xpath处理title {len(title_list)} url {len(url_list)} time数量不对等 ")
+                    return ""
+            else:
+                xpath_info = xpath_html.xpath(self.xpath_list)[0]
+                all_a_xpath = xpath_info.xpath(".//a[@href]")
+                index = 0
+                for ko in all_a_xpath:
+                    title = "".join(ko.xpath("./@title")).replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                    if not title:
+                        title = "".join(ko.xpath(".//text()")).replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+                    if len(title) < 1:
+                        continue
+                    href = "".join(ko.xpath("./@href")).replace('\n', '').replace('\r', '').replace('\t', '').replace(" ", '').replace('\\', '')
+                    href = urljoin(self.pageurl, href).replace("site/readneed.jsp?id", 'need/viewNeed.jsp?needId')
+                    if '查看详情' in title or 'javascript:;' in href:
+                        continue
+                    a_num = self.pd_title(title, self.include, self.not_include)
+                    if a_num == 0:
+                        title = title.replace(' ', '')
+                        title = self.replace_title(self.r_replace, self.l_replace, title, self.def_src)
+                        if all_time != None:
+                            date = all_time[pd_i]
+                            pub_time = self.handle_pubdate(date)
+                        else:
+                            pub_time = ''
+                        pub_time = str(pub_time)
+                        if int(self.detail_type) == 1:
+                            post_data_str =self.POST_data(self.detail_data, self.html, index)  ####拿到post所需data数据
+                            index += 1
+                            m = hashlib.md5()
+                            m.update(str(post_data_str).encode('utf-8'))
+                            right = m.hexdigest()  ####拿到url 哈希值
+                            href = href + "*^*" + right
+                        else:
+                            post_data_str = ""
+                        item =  {
+                                'title': self.replace_biaoti(title),
+                                'xq_url': href,
+                                'pageurl': self.pageurl,
+                                'public_time': pub_time,
+                                'post_data': post_data_str
+                                    }
+                        if self.judge_model == "formal":
+                            info = (json.dumps(post_data_str), self.replace_biaoti(title), self.cid, 0, 0, pub_time, href)
+                            json_list.append(info)
+                        elif self.judge_model == "test":
+                            json_list.append(item)
+                    else:
+                        pass
+                    pd_i += 1
+                return json_list
+        except Exception as err:
+            self.logger.error(f"栏目页 {self.pageurl} xpath处理数据失败 msg={err}")
+            P = ""
+            return P
+
+
+    def Handle_re(self):
+        json_list = []
+        title = re.compile(self.title_re).findall(self.html)
+        title = [i for i in title if i != '']
+        # if "http://edu.sh.gov.cn/html/applistxml/xxgk" in self.pageurl:
+        #     a = re.compile("<dt_generateDate>(.*?)</dt_generateDate>").findall(self.html)
+        #     x = [c[:-2].replace('-', '') for c in a]
+        #     b = re.compile("<str_catchNum_K>(.*?)</str_catchNum_K>").findall(self.html)
+        #     g = lambda a, b: [x[i] + "/" + b[i] for i in range(len(x))]
+        #     href_a = g(a, b)
+        if self.xq_url_light:
+            href_b = self.parse_joint(self.xq_url_light, self.html, self.xq_url_right)
+        else:
+            href_a = re.compile(xq_url_right).findall(html)
+            href_b = href_a
+        if int(judge_time) != 0 and int(judge_time) < 4:
+            all_time = public_time(html, judge_time, re_time, xpath_time)
+        else:
+            all_time = None
+        print("标题{}网址{}".format(len(title), len(href_b)))
+        index = 0
+        for l in range(0, len(title)):
+            href = href_b[l].replace('\\', '').replace("\n", '').replace("\t", '').strip()
+            try:
+                href = urljoin(pageurl, href).replace("site/readneed.jsp?id", 'need/viewNeed.jsp?needId')
+            except:
+                pass
+            if 'zfcxjst.gd.gov.cn/gkmlpt/api/all/1427?' in pageurl or 'zfcxjst.gd.gov.cn/gkmlpt/api/all' in pageurl or 'gdaudit.gd.gov.cn/gkmlpt/api/all/0?' in pageurl or 'www.zhxz.gov.cn/gkmlpt/api/all/0?' in pageurl or transcode == 2:
+                title[l] = title[l].replace("%u", '\\u').encode('utf-8').decode('unicode_escape', 'ignore')
+
+            title[l] = title[l].replace(' ', '')
+            title[l] = replace_title(r_replace, l_replace, title[l], def_src)
+            a_num = pd_title(title[l], include, not_include)
+            if all_time != None:
+                date = all_time[l]
+                pub_time = handle_pubdate(date)
+            else:
+                pub_time = ''
+            pub_time = str(pub_time)
+            title[l] = re.sub("<.*?>", '', title[l])
+            if int(detail_type) == 1:
+                post_data_str = POST_data(detail_data, html, index)  ####拿到post所需data数据
+                index += 1
+                m = hashlib.md5()
+                m.update(str(post_data_str).encode('utf-8'))
+                right = m.hexdigest()  ####拿到url 哈希值
+                href = href + "*^*" + right
+                if pageurl == "http://zwgk.shcn.gov.cn:9091/Epoint-MiddleForWeb/rest/lightfrontaction/getgovinfolist":
+                    post_data_str_1 = {}
+                    post_data_str_1['params'] = post_data_str
+                    post_data_str = post_data_str_1
+            else:
+                post_data_str = ""
+            lol = {
+                'title': replace_biaoti(title[l]),
+                'xq_url': href.replace('\n', '').replace('\r', '').replace('\t', '').replace("&amp;", '&'),
+                'pageurl': pageurl,
+                'public_time': pub_time,
+                'post_data': post_data_str
+            }
+            info = (json.dumps(post_data_str), replace_biaoti(title[l]), cid, 0, 0, pub_time, href.strip().replace("&amp;", '&').replace('\n', '').replace('\r', '').replace('\t', ''))
+            if a_num == 0:
+                if judge_model == "formal":
+                    json_list.append(info)
+                elif judge_model == "test":
+                    json_list.append(lol)
+            else:
+                pass
+        return json_list
+
 
     def replace_biaoti(self,html):
         title = html.replace('showTitle', '').replace('(', '').replace(')', '').replace('\\', '').replace("&amp;", '&').replace('\n', '').replace('\r', '').replace('\t', '').replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", '&').replace("&nbsp;", '').replace("&nbsp", '').replace("nbsp", '')
         return title
+
+    def parse_joint(self,xq_url_light, html, xq_url_right):
+        if "*" in xq_url_light:
+            count = xq_url_light.count("*")
+            all_right = xq_url_right.split("^")
+            all = []
+            for i in range(0, count):
+                xpath = all_right[i]
+                p = re.compile(xpath).findall(html)
+                p_len = len(p)
+                all.extend(p)
+            all_url = []
+            for o in range(0, p_len):
+                for i in range(0, count):
+                    if i > 0:
+                        url = url.replace("*", all[o + p_len], 1)
+                    else:
+                        url = xq_url_light.replace("*", all[o], 1)
+                all_url.append(url)
+        else:
+            all_url = []
+            p = re.compile(xq_url_right).findall(html)
+            for i in p:
+                all_url.append(xq_url_light)
+        return all_url

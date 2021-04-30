@@ -12,7 +12,8 @@ import re
 from utils import log
 from utils.request_util import  requests
 from utils.async_proxy_util import *
-
+from aiohttp import ClientConnectorError, ClientOSError, ClientHttpProxyError
+from concurrent.futures import TimeoutError
 async  def Ray_html(url,headers,logger):
     """
     加载瑞数js，解决部分湖北上海网页有反爬
@@ -165,6 +166,8 @@ async  def Ray_html(url,headers,logger):
                 return info
             else:
                 a_num += 1
+        except (ClientHttpProxyError, ClientOSError, ClientConnectorError, TimeoutError) as e:
+            logger.error(f"瑞树js 政策 {url} get  代理出错 {a_num}次")
         except Exception as err:
             logger.error("瑞树网页爬取失败 url: {} error: {} 当前循环次数{}".format(url,err,str(a_num+1)))
             a_num += 1
